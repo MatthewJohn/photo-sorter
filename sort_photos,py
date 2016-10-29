@@ -29,13 +29,17 @@ def md5(fname):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
-files = subprocess.check_output(['find', SOURCE_DIR, '-type', 'f', '-regex', '.*\.\(JPG\|GIF\|JPEG\|PNG\|jpg\|gif\|png\|jpeg\)'])
-for file in files.split("\n"):
-    print 'found file %s' % file
+# Temporary hack to list files - seemed initially to be quicker than
+# walking the directories
+files = subprocess.check_output(['find', SOURCE_DIR,
+                                 '-type', 'f',
+                                 '-regex', '.*\.\(JPG\|GIF\|JPEG\|PNG\|jpg\|gif\|png\|jpeg\)'])
+for file_path in files.split("\n"):
+    print 'found file %s' % file_path
     try:
-        exif_data = get_exif(file)
+        exif_data = get_exif(file_path)
     except:
-        print 'could not process %s' % file
+        print 'could not process %s' % file_path
         continue
 
     date_time = None
@@ -47,29 +51,29 @@ for file in files.split("\n"):
     elif 'DateTimeDigitized' in exif_data:
         date = exif_data['DateTimeDigitized']
     else:
-        print 'Could not determine date for %s, using mtime' % file
-        dt = os.path.getmtime(file)
+        print 'Could not determine date for %s, using mtime' % file_path
+        dt = os.path.getmtime(file_path)
         date_time = datetime.fromtimestamp(dt)
 
     if 'ExifImageHeight' in exif_data and int(exif_data['ExifImageHeight']) < 65:
-        print 'Image too Small: %s' % file
+        print 'Image too Small: %s' % file_path
         continue
     if 'ExifImageWidth' in exif_data and str(exif_data['ExifImageWidth']) < 65:
-        print 'Image too Small: %s' % file
+        print 'Image too Small: %s' % file_path
         continue
 
     try:
         if not date_time:
             date_time = datetime.strptime(str(date), '%Y:%m:%d %H:%M:%S')
     except:
-        print 'Couldnt parse date time for %s: %s' % (file, date)
+        print 'Couldnt parse date time for %s: %s' % (file_path, date)
         continue
 
     dest_dir = '%s/%s/%s' % (DEST_DIR, date_time.year, date_time.month)
-    md5sum = md5(file)
+    md5sum = md5(file_path)
     index_key = '%s-%s-%s' % (date_time.year, date_time.month, md5sum)
     if index_key not in file_hashes:
-        file_name = file.split('/')[-1]
+        file_name = file_path.split('/')[-1]
         dest_filename = file_name
 
         filename_itx = 1
@@ -83,12 +87,12 @@ for file in files.split("\n"):
         if not os.path.exists(dest_dir):
             mkpath(dest_dir)
             print 'creating dir %s' % dest_dir
-        print 'copying %s to %s' % (file, dest_path)
+        print 'copying %s to %s' % (file_path, dest_path)
 
         # determine free name
-        os.symlink(file, dest_path)
+        os.symlink(file_path, dest_path)
         file_hashes.append(index_key)
     else:
-        print 'Ignoring dupe: %s' % file
+        print 'Ignoring dupe: %s' % file_path
 
 
